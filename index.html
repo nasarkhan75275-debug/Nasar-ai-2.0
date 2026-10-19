@@ -3,69 +3,109 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>NASAR AI</title>
+<title>NASAR AI - Voice + Photo</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui;background:#0f0f0f;color:#fff;display:flex;flex-direction:column;height:100dvh}
-#top{padding:14px;text-align:center;background:#171717;border-bottom:1px solid #333;font-weight:800}
-#chat{flex:1;overflow-y:auto;padding:16px;padding-bottom:20px;display:flex;flex-direction:column;gap:12px}
-.bubble{max-width:85%;padding:12px 14px;border-radius:16px;white-space:pre-wrap}
+#top{padding:12px 14px;background:#171717;border-bottom:1px solid #333;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+#top span{font-size:15px}
+#top button{padding:5px 12px;border-radius:20px;border:none;background:#333;color:#fff;font-size:12px}
+#chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.bubble{max-width:85%;padding:12px 14px;border-radius:16px;white-space:pre-wrap;position:relative}
 .me{background:#19c37d;color:#000;align-self:flex-end}
 .bot{background:#2a2a2a;align-self:flex-start}
-#bar{
-  padding:10px;
-  padding-bottom: calc(10px + env(safe-area-inset-bottom) + 15px);
-  margin-bottom: 8px;
-  display:flex;
-  gap:8px;
-  background:#171717;
-  border-top:1px solid #333;
-  position:sticky;
-  bottom:0;
-}
-#bar input{flex:1;padding:14px;border-radius:25px;border:1px solid #444;background:#2a2a2a;color:#fff;outline:none;font-size:16px}
-#bar button{padding:14px 24px;border-radius:25px;border:none;background:#19c37d;color:#000;font-weight:900}
+.bot img{max-width:100%;border-radius:12px;margin-top:8px;border:1px solid #444}
+.speakBtn{font-size:11px;background:#444;color:#fff;border:none;border-radius:10px;padding:4px 8px;margin-top:6px;cursor:pointer}
+#bar{padding:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom) + 18px);margin-bottom:6px;display:flex;gap:6px;background:#171717;border-top:1px solid #333;position:sticky;bottom:0;align-items:center}
+#bar input{flex:1;padding:14px;border-radius:25px;border:1px solid #444;background:#2a2a2a;color:#fff;outline:none;font-size:15px}
+.iconBtn{width:44px;height:44px;border-radius:50%;border:none;background:#2a2a2a;color:#fff;font-size:18px}
+#sendBtn{padding:14px 18px;border-radius:25px;border:none;background:#19c37d;color:#000;font-weight:900}
+.micActive{background:#ff3b30 !important;color:#fff !important;animation:pulse 1s infinite}
+@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
 </style>
 </head>
 <body>
-<div id="top">🤖 NASAR AI • Fixed</div>
+<div id="top"><span>🤖 NASAR AI • Voice + Photo</span><button onclick="resetKey()">Reset Key</button></div>
 <div id="chat"></div>
 <div id="bar">
-<input id="msg" placeholder="Yahan likh...">
-<button id="sendBtn" type="button">Send</button>
+<button class="iconBtn" id="micBtn">🎤</button>
+<input id="msg" placeholder="Bolo ya likho... 'taj mahal photo banao'">
+<button class="iconBtn" id="imgBtn">🖼️</button>
+<button id="sendBtn">Send</button>
 </div>
 <script>
-// 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 - gsk_ se start hogi
-const GROQ_API_KEY = "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";
+function getKey(){let k=localStorage.getItem("groq_key");if(!k){k=prompt("Groq Key dalo (gsk_...) :");if(k){localStorage.setItem("groq_key",k.trim());return k.trim()}}return k}
+function resetKey(){localStorage.removeItem("groq_key");location.reload()}
 
-const chatBox=document.getElementById('chat');
-const msgInput=document.getElementById('msg');
-const sendBtn=document.getElementById('sendBtn');
-function addMsg(t,c){let d=document.createElement('div');d.className='bubble '+c;d.innerText=t;chatBox.appendChild(d);chatBox.scrollTop=chatBox.scrollHeight;return d;}
+const chatBox=document.getElementById('chat'),msgInput=document.getElementById('msg'),sendBtn=document.getElementById('sendBtn'),micBtn=document.getElementById('micBtn'),imgBtn=document.getElementById('imgBtn');
+
+function addMsg(t,c,isImg){let d=document.createElement('div');d.className='bubble '+c;
+if(isImg){d.innerHTML=t}else{d.innerText=t}
+if(c==='bot'){let s=document.createElement('button');s.className='speakBtn';s.innerText='🔊 Suno';s.onclick=()=>speak(t);d.appendChild(document.createElement('br'));d.appendChild(s);}
+chatBox.appendChild(d);chatBox.scrollTop=chatBox.scrollHeight;return d;}
+
+function speak(text){let clean=text.replace(/<[^>]*>/g,''); let u=new SpeechSynthesisUtterance(clean); u.lang='hi-IN'; u.rate=1; speechSynthesis.speak(u);}
+
+// VOICE INPUT
+let rec;
+if('webkitSpeechRecognition' in window || 'SpeechRecognition' in window){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  rec=new SR(); rec.lang='hi-IN'; rec.interimResults=false;
+  rec.onstart=()=>micBtn.classList.add('micActive');
+  rec.onend=()=>micBtn.classList.remove('micActive');
+  rec.onresult=(e)=>{msgInput.value=e.results[0][0].transcript; sendMessage();}
+}
+micBtn.onclick=()=>{if(!rec) return alert("Voice is phone me support nahi hai"); rec.start();}
+
+// PHOTO GENERATE - Free Pollinations API
+function genImage(prompt){
+  let url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&nologo=true&model=flux&seed=${Math.floor(Math.random()*1000)}`;
+  let html=`🖼️ Prompt: ${prompt}<br><img src="${url}" onload="chatBox.scrollTop=chatBox.scrollHeight" onerror="this.outerHTML='Image load fail, dobara try karo'">`;
+  addMsg(html,'bot',true);
+}
+
+imgBtn.onclick=()=>{
+  let p=prompt("Kaisi photo banani hai? Ex: cute cat in Patna");
+  if(p) genImage(p);
+}
+
 async function sendMessage(){
  let q=msgInput.value.trim(); if(!q) return;
+ let key=getKey(); if(!key) return;
  addMsg(q,'me'); msgInput.value='';
+
+ // Agar photo banana hai toh
+ let low=q.toLowerCase();
+ if(low.includes("photo banao") || low.includes("image banao") || low.includes("tasveer banao") || low.startsWith("/image") || low.startsWith("/photo")){
+   let prompt=q.replace(/photo banao|image banao|tasveer banao|\/image|\/photo/gi,'').trim() || q;
+   genImage(prompt);
+   return;
+ }
+
  let bot=addMsg('Soch raha hu...','bot');
  try{
   let res=await fetch("https://api.groq.com/openai/v1/chat/completions",{
    method:"POST",
-   headers:{"Content-Type":"application/json","Authorization":"Bearer "+GROQ_API_KEY},
+   headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
    body:JSON.stringify({
-     model:"llama-3.1-8b-instant",
+     model:"openai/gpt-oss-20b",
      messages:[
-       {role:"system",content:"You are NASAR AI made by Nasar Khan from Patna, Bihar. Answer in Hinglish."},
+       {role:"system",content:"You are NASAR AI made by Nasar Khan from Patna, Bihar. You can talk Hinglish. If user asks for photo, say you can generate. Be friendly, premium."},
        {role:"user",content:q}
      ]
    })
   });
   let j=await res.json();
-  if(j.error) bot.innerText="Error: "+j.error.message+" (Key check karo)";
-  else bot.innerText=j.choices[0].message.content;
+  bot.innerHTML=""; // clear
+  if(j.error) bot.innerText="Error: "+j.error.message;
+  else {bot.innerText=j.choices[0].message.content;
+        let s=document.createElement('button');s.className='speakBtn';s.innerText='🔊 Suno';s.onclick=()=>speak(j.choices[0].message.content);bot.appendChild(document.createElement('br'));bot.appendChild(s);
+  }
  }catch(e){bot.innerText="Network Error: "+e.message}
 }
 sendBtn.onclick=sendMessage;
 msgInput.addEventListener('keydown',e=>{if(e.key==='Enter')sendMessage()});
-addMsg("Hi Nasar! Ab fixed hai, input upar hai aur model bhi sahi hai! 🔥","bot");
+addMsg("Hi Nasar! 🔥 Ab Voice + Photo dono ready hai!\n\n🎤 Mic dabao aur bolo\n🖼️ 'cat ki photo banao' likho\n🔊 Har jawab sun sakte ho","bot");
 </script>
 </body>
 </html>
